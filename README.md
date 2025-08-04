@@ -1,6 +1,3 @@
-Here's a professional and clear `README.md` for your open-source Python GUI project **`code_easier`**, structured for GitHub:
-
----
 
 # 🧰 code\_easier
 
