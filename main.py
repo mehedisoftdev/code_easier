@@ -2,125 +2,143 @@ import tkinter as tk
 from tkinter import messagebox, scrolledtext
 import json
 
-
-def snake_to_camel(word):
+def snake_to_pascal(word):
     return ''.join(x.capitalize() or '_' for x in word.split('_'))
 
+def snake_to_camel(word):
+    components = word.split('_')
+    return components[0] + ''.join(x.title() for x in components[1:])
 
-def generate_dart_code(json_str, entity_name, with_entity):
+def generate_dart_code(json_str, root_class_name, with_entity):
     try:
-        data = json.loads(json_str)
+        parsed = json.loads(json_str)
     except Exception as e:
         return f"❌ Invalid JSON: {e}"
 
     is_list_input = False
-    if isinstance(data, list):
-        if len(data) == 0:
-            return "⚠️ JSON array is empty."
-        if not isinstance(data[0], dict):
+    if isinstance(parsed, list):
+        if len(parsed) == 0 or not isinstance(parsed[0], dict):
             return "⚠️ JSON array must contain objects."
-        data = data[0]
+        parsed = parsed[0]
         is_list_input = True
 
-    if not isinstance(data, dict):
-        return "⚠️ Please provide a JSON object or array of objects."
+    generated_classes = {}
 
-    fields = []
-    from_json_lines = []
-    to_json_lines = []
+    def parse_object(obj, class_name):
+        if class_name in generated_classes:
+            return
 
-    for key, value in data.items():
-        dart_type = "String"
-        fallback = "''"
-        if isinstance(value, int):
-            dart_type = "int"
-            fallback = "0"
-        elif isinstance(value, float):
-            dart_type = "double"
-            fallback = "0.0"
-        elif isinstance(value, bool):
-            dart_type = "bool"
-            fallback = "false"
+        fields = []
+        from_json = []
+        to_json = []
+        to_entity = []
+        entity_fields = []
 
-        camel_key = snake_to_camel(key[0].lower() + key[1:]) if "_" in key else key
-        fields.append(f"  final {dart_type} {camel_key};")
-        from_json_lines.append(f"      {camel_key}: json['{key}'] ?? {fallback},")
-        to_json_lines.append(f"      '{key}': {camel_key},")
+        for key, value in obj.items():
+            field_name = snake_to_camel(key)
+            dart_type = "String"
+            fallback = "''"
+
+            if isinstance(value, bool):
+                dart_type = "bool"
+                fallback = "false"
+            elif isinstance(value, int):
+                dart_type = "int"
+                fallback = "0"
+            elif isinstance(value, float):
+                dart_type = "double"
+                fallback = "0.0"
+            elif isinstance(value, list):
+                if len(value) > 0 and isinstance(value[0], dict):
+                    sub_class = snake_to_pascal(key)
+                    parse_object(value[0], sub_class)
+                    dart_type = f"List<{sub_class}>"
+                    fallback = "[]"
+                    from_json.append(
+                        f"      {field_name}: (json['{key}'] as List).map((e) => {sub_class}.fromJson(e)).toList(),"
+                    )
+                    to_json.append(
+                        f"      '{key}': {field_name}.map((e) => e.toJson()).toList(),"
+                    )
+                    if with_entity:
+                        to_entity.append(f"      {field_name}: {field_name},")
+                    fields.append(f"  final {dart_type} {field_name};")
+                    entity_fields.append(f"  final {dart_type} {field_name};")
+                    continue
+                else:
+                    dart_type = "List<dynamic>"
+                    fallback = "[]"
+            elif isinstance(value, dict):
+                sub_class = snake_to_pascal(key)
+                parse_object(value, sub_class)
+                dart_type = sub_class
+                fallback = f"{sub_class}.fromJson({{}})"
+                from_json.append(
+                    f"      {field_name}: {sub_class}.fromJson(json['{key}']),"
+                )
+                to_json.append(
+                    f"      '{key}': {field_name}.toJson(),"
+                )
+                if with_entity:
+                    to_entity.append(f"      {field_name}: {field_name},")
+                fields.append(f"  final {dart_type} {field_name};")
+                entity_fields.append(f"  final {dart_type} {field_name};")
+                continue
+
+            fields.append(f"  final {dart_type} {field_name};")
+            from_json.append(f"      {field_name}: json['{key}'] ?? {fallback},")
+            to_json.append(f"      '{key}': {field_name},")
+            if with_entity:
+                to_entity.append(f"      {field_name}: {field_name},")
+                entity_fields.append(f"  final {dart_type} {field_name};")
+
+        constructor_params = '\n'.join([f"    required this.{f.split()[-1][:-1]}," for f in fields])
+        class_body = f"""
+class {class_name}{' extends ' + class_name + 'Entity' if with_entity else ''} {{
+{chr(10).join(fields)}
+
+  {class_name}({{
+{constructor_params}
+  }});
+
+  factory {class_name}.fromJson(Map<String, dynamic> json) {{
+    return {class_name}(
+{chr(10).join(from_json)}
+    );
+  }}
+
+  Map<String, dynamic> toJson() {{
+    return {{
+{chr(10).join(to_json)}
+    }};
+  }}""" + (f"""
+
+  {class_name}Entity toEntity() => {class_name}Entity(
+{chr(10).join(to_entity)}
+  );""" if with_entity else "") + """
+}"""
+        generated_classes[class_name] = class_body.strip()
+
+        if with_entity:
+            entity_constructor = '\n'.join([f"    required this.{f.split()[-1][:-1]}," for f in entity_fields])
+            entity_class = f"""
+class {class_name}Entity {{
+{chr(10).join(entity_fields)}
+
+  {class_name}Entity({{
+{entity_constructor}
+  }});
+}}"""
+            generated_classes[f"{class_name}Entity"] = entity_class.strip()
+
+    parse_object(parsed, root_class_name)
 
     note = ""
-    if is_list_input and entity_name.lower().endswith("list"):
-        suggested_name = entity_name[:-4]
-        note = f"\n// ⚠️ Tip: Your input is a list. You probably want to use entity name like '{suggested_name}'."
+    if is_list_input and root_class_name.lower().endswith("list"):
+        suggested = root_class_name[:-4]
+        note = f"// ⚠️ Tip: Your input is a list. You probably want to use entity name like '{suggested}'.\n\n"
 
-    # === Entity class ===
-    entity_code = f"""
-class {entity_name} {{
-{chr(10).join(fields)}
-
-  {entity_name}({{
-{chr(10).join(['    required this.' + line.split()[-1][:-1] + ',' for line in fields])}
-  }});
-}}""" if with_entity else ""
-
-    # === Model class ===
-    model_name = f"{entity_name}Model"
-
-    if with_entity:
-        model_code = f"""
-import 'package:your_project_path/{entity_name.lower()}.dart';
-
-class {model_name} extends {entity_name} {{
-  {model_name}({{
-{chr(10).join(['    required super.' + line.split()[-1][:-1] + ',' for line in fields])}
-  }});
-
-  factory {model_name}.fromJson(Map<String, dynamic> json) {{
-    return {model_name}(
-{chr(10).join(from_json_lines)}
-    );
-  }}
-
-  Map<String, dynamic> toJson() {{
-    return {{
-{chr(10).join(to_json_lines)}
-    }};
-  }}
-
-  {entity_name} toEntity() => {entity_name}(
-{chr(10).join(['      ' + line.split()[-1][:-1] + ': ' + line.split()[-1][:-1] + ',' for line in fields])}
-  );
-
-  static List<{model_name}> fromJsonList(List<dynamic> jsonList) {{
-    return jsonList.map((json) => {model_name}.fromJson(json)).toList();
-  }}
-}}"""
-    else:
-        model_code = f"""
-class {model_name} {{
-{chr(10).join(fields)}
-
-  {model_name}({{
-{chr(10).join(['    required this.' + line.split()[-1][:-1] + ',' for line in fields])}
-  }});
-
-  factory {model_name}.fromJson(Map<String, dynamic> json) {{
-    return {model_name}(
-{chr(10).join(from_json_lines)}
-    );
-  }}
-
-  Map<String, dynamic> toJson() {{
-    return {{
-{chr(10).join(to_json_lines)}
-    }};
-  }}
-
-  static List<{model_name}> fromJsonList(List<dynamic> jsonList) {{
-    return jsonList.map((json) => {model_name}.fromJson(json)).toList();
-  }}
-}}"""
-
-    return note + "\n\n" + entity_code + "\n\n" + model_code
+    return note + "\n\n" + "\n\n".join(generated_classes.values())
 
 
 # === GUI HANDLERS ===
@@ -160,4 +178,3 @@ output_text = scrolledtext.ScrolledText(root, height=20)
 output_text.pack(fill="both", padx=10, pady=5)
 
 root.mainloop()
-
