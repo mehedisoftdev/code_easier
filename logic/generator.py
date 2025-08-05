@@ -4,14 +4,12 @@ import re
 def snake_to_pascal(word):
     return ''.join(x.capitalize() or '_' for x in word.split('_'))
 
-
 def snake_to_camel(name):
     # Handles snake_case, PascalCase, and UPPER_SNAKE_CASE → lowerCamelCase
     s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)  # Convert PascalCase to snake_case
     s2 = re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1)
     components = s2.lower().split('_')
     return components[0] + ''.join(x.title() for x in components[1:])
-
 
 def generate_dart_code(json_str, root_class_name, with_entity):
     try:
@@ -37,7 +35,6 @@ def generate_dart_code(json_str, root_class_name, with_entity):
         fields = []
         from_json = []
         to_json = []
-        to_entity = []
         entity_fields = []
 
         for key, value in obj.items():
@@ -62,8 +59,6 @@ def generate_dart_code(json_str, root_class_name, with_entity):
                     fallback = "[]"
                     from_json.append(f"      {field_name}: (json['{key}'] as List).map((e) => {sub_class}.fromJson(e)).toList(),")
                     to_json.append(f"      '{key}': {field_name}.map((e) => e.toJson()).toList(),")
-                    if with_entity:
-                        to_entity.append(f"      {field_name}: {field_name},")
                     fields.append(f"  final {dart_type} {field_name};")
                     entity_fields.append(f"  final {dart_type} {field_name};")
                     continue
@@ -77,8 +72,6 @@ def generate_dart_code(json_str, root_class_name, with_entity):
                 fallback = f"{sub_class}.fromJson({{}})"
                 from_json.append(f"      {field_name}: {sub_class}.fromJson(json['{key}']),")
                 to_json.append(f"      '{key}': {field_name}.toJson(),")
-                if with_entity:
-                    to_entity.append(f"      {field_name}: {field_name},")
                 fields.append(f"  final {dart_type} {field_name};")
                 entity_fields.append(f"  final {dart_type} {field_name};")
                 continue
@@ -86,11 +79,13 @@ def generate_dart_code(json_str, root_class_name, with_entity):
             fields.append(f"  final {dart_type} {field_name};")
             from_json.append(f"      {field_name}: json['{key}'] ?? {fallback},")
             to_json.append(f"      '{key}': {field_name},")
-            if with_entity:
-                to_entity.append(f"      {field_name}: {field_name},")
-                entity_fields.append(f"  final {dart_type} {field_name};")
+            entity_fields.append(f"  final {dart_type} {field_name};")
 
-        constructor_params = '\n'.join([f"    required this.{f.split()[-1][:-1]}," for f in fields])
+        if with_entity:
+            constructor_params = '\n'.join([f"    required super.{f.split()[-1][:-1]}," for f in fields])
+        else:
+            constructor_params = '\n'.join([f"    required this.{f.split()[-1][:-1]}," for f in fields])
+
         class_body = ""
 
         if with_entity:
@@ -100,9 +95,7 @@ import 'package:your_project_path/{entity_class_name.lower()}.dart';
 class {class_name} extends {entity_class_name} {{
   {class_name}({{
 {constructor_params}
-  }}) : super(
-{chr(10).join([f"    {line.split()[-1][:-1]}: {line.split()[-1][:-1]}," for line in fields])}
-  );
+  }});
 
   factory {class_name}.fromJson(Map<String, dynamic> json) {{
     return {class_name}(

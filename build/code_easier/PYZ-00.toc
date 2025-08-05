@@ -160,6 +160,8 @@
   ('typing', 'C:\\Anaconda\\Lib\\typing.py', 'PYMODULE'),
   ('urllib', 'C:\\Anaconda\\Lib\\urllib\\__init__.py', 'PYMODULE'),
   ('urllib.parse', 'C:\\Anaconda\\Lib\\urllib\\parse.py', 'PYMODULE'),
+  ('utils', '-', 'PYMODULE'),
+  ('utils.utils', 'D:\\tempDir\\code_easier\\utils\\utils.py', 'PYMODULE'),
   ('zipfile', 'C:\\Anaconda\\Lib\\zipfile\\__init__.py', 'PYMODULE'),
   ('zipfile._path',
    'C:\\Anaconda\\Lib\\zipfile\\_path\\__init__.py',

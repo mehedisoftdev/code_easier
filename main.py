@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext
 from logic.generator import generate_dart_code
+from utils.utils import resource_path
 
 def on_generate():
     json_input = json_text.get("1.0", tk.END).strip()
@@ -17,7 +18,9 @@ def on_generate():
 
 # === UI SETUP ===
 root = tk.Tk()
-root.title("code_easier - Dart Model/Entity Generator")
+root.title("Code Easier - Dart Model/Entity Generator")
+icon_path = resource_path("assets/icon.ico")
+root.iconbitmap(icon_path)
 root.geometry("1000x700")
 root.minsize(800, 600)
 root.state('zoomed')
