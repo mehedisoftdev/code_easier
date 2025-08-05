@@ -1,4 +1,4 @@
-('D:\\tempDir\\code_generator\\build\\code_easier\\PYZ-00.pyz',
+('D:\\tempDir\\code_easier\\build\\code_easier\\PYZ-00.pyz',
  [('_compat_pickle', 'C:\\Anaconda\\Lib\\_compat_pickle.py', 'PYMODULE'),
   ('_compression', 'C:\\Anaconda\\Lib\\_compression.py', 'PYMODULE'),
   ('_py_abc', 'C:\\Anaconda\\Lib\\_py_abc.py', 'PYMODULE'),
