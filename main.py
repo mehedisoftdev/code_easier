@@ -1,7 +1,5 @@
-# main.py
-
 import tkinter as tk
-from tkinter import messagebox, scrolledtext
+from tkinter import ttk, messagebox, scrolledtext
 from logic.generator import generate_dart_code
 
 def on_generate():
@@ -20,23 +18,45 @@ def on_generate():
 # === UI SETUP ===
 root = tk.Tk()
 root.title("code_easier - Dart Model/Entity Generator")
+root.geometry("1000x700")
+root.minsize(800, 600)
 root.state('zoomed')
 
-tk.Label(root, text="Paste JSON:").pack()
-json_text = scrolledtext.ScrolledText(root, height=10)
-json_text.pack(fill="both", padx=10, pady=5)
 
-tk.Label(root, text="Entity Class Name:").pack()
-entity_entry = tk.Entry(root)
-entity_entry.pack(fill="x", padx=10)
+style = ttk.Style()
+style.configure("TLabel", font=("Segoe UI", 10))
+style.configure("TButton", font=("Segoe UI", 10, "bold"))
+style.configure("TCheckbutton", font=("Segoe UI", 10))
+
+main_frame = ttk.Frame(root, padding=10)
+main_frame.pack(fill="both", expand=True)
+
+# Input JSON
+ttk.Label(main_frame, text="Paste JSON:").grid(row=0, column=0, sticky="w", pady=(0, 5))
+json_text = scrolledtext.ScrolledText(main_frame, height=12, wrap="word", font=("Consolas", 10),  undo=True)
+json_text.grid(row=1, column=0, columnspan=3, sticky="nsew", pady=(0, 10))
+
+# Entity input
+ttk.Label(main_frame, text="Entity Class Name:").grid(row=2, column=0, sticky="w")
+entity_entry = ttk.Entry(main_frame)
+entity_entry.grid(row=2, column=1, sticky="ew", padx=(5, 0))
 
 entity_var = tk.BooleanVar()
-tk.Checkbutton(root, text="With Entity", variable=entity_var).pack(anchor="w", padx=10)
+ttk.Checkbutton(main_frame, text="With Entity", variable=entity_var).grid(row=2, column=2, sticky="w", padx=(10, 0))
 
-tk.Button(root, text="Generate", command=on_generate).pack(pady=10)
+# Generate button
+ttk.Button(main_frame, text="Generate", command=on_generate).grid(row=3, column=0, columnspan=3, pady=10)
 
-tk.Label(root, text="Generated Dart Code:").pack()
-output_text = scrolledtext.ScrolledText(root, height=20)
-output_text.pack(fill="both", padx=10, pady=5)
+# Output
+ttk.Label(main_frame, text="Generated Dart Code:").grid(row=4, column=0, sticky="w", pady=(10, 5))
+output_text = scrolledtext.ScrolledText(main_frame, height=15, wrap="word", font=("Consolas", 10),  undo=True)
+output_text.grid(row=5, column=0, columnspan=3, sticky="nsew")
+
+# Grid configuration
+main_frame.columnconfigure(0, weight=1)
+main_frame.columnconfigure(1, weight=2)
+main_frame.columnconfigure(2, weight=1)
+main_frame.rowconfigure(1, weight=1)
+main_frame.rowconfigure(5, weight=2)
 
 root.mainloop()
