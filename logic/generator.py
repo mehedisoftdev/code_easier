@@ -1,11 +1,17 @@
 import json
+import re
 
 def snake_to_pascal(word):
     return ''.join(x.capitalize() or '_' for x in word.split('_'))
 
-def snake_to_camel(word):
-    components = word.split('_')
+
+def snake_to_camel(name):
+    # Handles snake_case, PascalCase, and UPPER_SNAKE_CASE → lowerCamelCase
+    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)  # Convert PascalCase to snake_case
+    s2 = re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1)
+    components = s2.lower().split('_')
     return components[0] + ''.join(x.title() for x in components[1:])
+
 
 def generate_dart_code(json_str, root_class_name, with_entity):
     try:
