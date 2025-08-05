@@ -19,6 +19,16 @@ def generate_dart_code(json_str, root_class_name, with_entity):
 
     is_list_input = False
     if isinstance(parsed, list):
+            # Build a dict of all keys and their types across the array
+        key_type_map = {}
+        for item in json.loads(json_str):
+            if isinstance(item, dict):
+                for k, v in item.items():
+                    if v is not None:
+                        current_type = type(v).__name__
+                        if k not in key_type_map:
+                            key_type_map[k] = current_type
+
         if len(parsed) == 0 or not isinstance(parsed[0], dict):
             return "⚠️ JSON array must contain objects."
         parsed = parsed[0]
@@ -39,10 +49,25 @@ def generate_dart_code(json_str, root_class_name, with_entity):
 
         for key, value in obj.items():
             field_name = snake_to_camel(key)
+
+            # Default
             dart_type = "String"
             fallback = "''"
 
-            if isinstance(value, bool):
+            key_type = key_type_map.get(key, None)
+
+            if value is None:
+                if key_type == "int":
+                    dart_type = "int?"
+                elif key_type == "float":
+                    dart_type = "double?"
+                elif key_type == "bool":
+                    dart_type = "bool?"
+                else:
+                    dart_type = "String?"  # fallback
+                fallback = "null"
+
+            elif isinstance(value, bool):
                 dart_type = "bool"
                 fallback = "false"
             elif isinstance(value, int):
@@ -76,11 +101,17 @@ def generate_dart_code(json_str, root_class_name, with_entity):
                 entity_fields.append(f"  final {dart_type} {field_name};")
                 continue
 
-            fields.append(f"  final {dart_type} {field_name};")
-            from_json.append(f"      {field_name}: json['{key}'] ?? {fallback},")
+            # Handle nullable fallback
+            if value is None:
+                from_json.append(f"      {field_name}: json['{key}'],")
+            else:
+                from_json.append(f"      {field_name}: json['{key}'] ?? {fallback},")
+
             to_json.append(f"      '{key}': {field_name},")
+            fields.append(f"  final {dart_type} {field_name};")
             entity_fields.append(f"  final {dart_type} {field_name};")
 
+        
         if with_entity:
             constructor_params = '\n'.join([f"    required super.{f.split()[-1][:-1]}," for f in fields])
         else:
